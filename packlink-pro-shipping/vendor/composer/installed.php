@@ -1,7 +1,7 @@
 <?php return array(
     'root' => array(
-        'pretty_version' => '3.4.14',
-        'version' => '3.4.14.0',
+        'pretty_version' => '3.4.15',
+        'version' => '3.4.15.0',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -29,8 +29,8 @@
             'dev_requirement' => false,
         ),
         'packlink/woocommerce' => array(
-            'pretty_version' => '3.4.14',
-            'version' => '3.4.14.0',
+            'pretty_version' => '3.4.15',
+            'version' => '3.4.15.0',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
