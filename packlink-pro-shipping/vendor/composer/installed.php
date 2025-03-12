@@ -1,7 +1,7 @@
 <?php return array(
     'root' => array(
-        'pretty_version' => '3.4.15',
-        'version' => '3.4.15.0',
+        'pretty_version' => '3.4.16',
+        'version' => '3.4.16.0',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -20,17 +20,17 @@
             'dev_requirement' => false,
         ),
         'packlink/integration-core' => array(
-            'pretty_version' => 'v3.4.3',
-            'version' => '3.4.3.0',
+            'pretty_version' => 'v3.4.12',
+            'version' => '3.4.12.0',
             'type' => 'library',
             'install_path' => __DIR__ . '/../packlink/integration-core',
             'aliases' => array(),
-            'reference' => '05aa4a7b11e5fa46f372fcde1fb32ea2863bec50',
+            'reference' => 'af5269c11c5182b503167aa6e700b59c77418af5',
             'dev_requirement' => false,
         ),
         'packlink/woocommerce' => array(
-            'pretty_version' => '3.4.15',
-            'version' => '3.4.15.0',
+            'pretty_version' => '3.4.16',
+            'version' => '3.4.16.0',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

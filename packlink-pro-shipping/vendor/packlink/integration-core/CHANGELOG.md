@@ -3,6 +3,38 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
+## [3.4.11](https://github.com/packlink-dev/ecommerce_module_core/compare/v3.4.10...v3.4.11) - 2025-03-10
+### Changed
+- Add unsupported countries Morocco, United Arab Emirates and Monaco
+
+## [3.4.10](https://github.com/packlink-dev/ecommerce_module_core/compare/v3.4.9...v3.4.10) - 2025-01-30
+### Changed
+- Add unsupported countries Singapore and Taiwan
+
+## [3.4.9](https://github.com/packlink-dev/ecommerce_module_core/compare/v3.4.8...v3.4.9) - 2024-12-09
+### Changed
+- Add special handling for 429 - Too many retries exception
+
+## [3.4.8](https://github.com/packlink-dev/ecommerce_module_core/compare/v3.4.7...v3.4.8) - 2024-12-09
+### Changed
+- Add unsupported country Japan
+
+## [3.4.7](https://github.com/packlink-dev/ecommerce_module_core/compare/v3.4.6...v3.4.7) - 2024-11-20
+### Changed
+- Add index for context field in Scheduler entity
+
+## [3.4.6](https://github.com/packlink-dev/ecommerce_module_core/compare/v3.4.5...v3.4.6) - 2024-08-28
+### Changed
+- Add detection of expired drafts
+
+## [3.4.5](https://github.com/packlink-dev/ecommerce_module_core/compare/v3.4.4...v3.4.5) - 2024-07-30
+### Changed
+- Change BatchTaskCleanupTask to delete tasks in batches
+
+## [3.4.4](https://github.com/packlink-dev/ecommerce_module_core/compare/v3.4.3...v3.4.4) - 2024-07-12
+### Changed
+- Fix front for integrations which still doesn't support customs
+
 ## [3.4.3](https://github.com/packlink-dev/ecommerce_module_core/compare/v3.4.2...v3.4.3) - 2024-07-08
 ### Changed
 - Add unsupported country Algeria
