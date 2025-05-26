@@ -3,8 +3,8 @@ Contributors: packlink
 Tags: woocommerce, shipment, shipping, packlink
 Requires at least: 4.7
 Requires PHP: 5.5
-Tested up to: 6.7.1
-Stable tag: 3.5.1
+Tested up to: 6.7.2
+Stable tag: 3.5.2
 License: LICENSE-2.0
 License URI: http://www.apache.org/licenses/LICENSE-2.0
 
@@ -30,7 +30,7 @@ Connect your WooCommerce account with Packlink PRO.
 
 No download costs, installation or monthly fees - you pay purely for the shipments you book!
 
-**<a href="https://pro.packlink.es/cmslp/woocommerce" target="_blank" title="Subscription">Register free</a> in Packlink PRO and get started!**
+**<a href="https://auth.packlink.com/en-GB/woocommerce/register" target="_blank" title="Subscription">Register free</a> in Packlink PRO and get started!**
 
 == Installation ==
 
@@ -68,10 +68,29 @@ Click <a href="https://support-pro.packlink.com/hc/es-es/articles/210158585" tar
 
 == Changelog ==
 
+#### 3.5.2 - May 26th, 2025
+
+**Updates**
+- Fix incorrect mapping of tags in inflate method
+
 #### 3.5.1 - April 10th, 2025
 
 **Updates**
 - Add security improvements
+
+#### 3.5.0 - March 27th, 2025
+**Updates**
+Add support for special services and manual refresh of shipping services
+
+#### 3.4.16 - March 12th, 2025
+
+**Updates**
+- Add unsupported countries Morocco, United Arab Emirates and Monaco
+
+#### 3.4.15 - February 21st, 2025
+
+**Updates**
+- Fix problem with state
 
 #### 3.4.14 - January 22nd, 2025
 
