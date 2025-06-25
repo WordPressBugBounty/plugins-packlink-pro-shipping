@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="WEB_MODULE" version="4">
+  <component name="NewModuleRootManager">
+    <content url="file://$MODULE_DIR$">
+      <sourceFolder url="file://$MODULE_DIR$/" isTestSource="false" packagePrefix="Packlink\WooCommerce\" />
+      <sourceFolder url="file://$MODULE_DIR$/vendor/packlink/integration-core/tests/Brands" isTestSource="true" packagePrefix="Logeecom\Tests\Brands\" />
+      <sourceFolder url="file://$MODULE_DIR$/vendor/packlink/integration-core/tests/BusinessLogic" isTestSource="true" packagePrefix="Logeecom\Tests\BusinessLogic\" />
+      <sourceFolder url="file://$MODULE_DIR$/vendor/packlink/integration-core/tests/Infrastructure" isTestSource="true" packagePrefix="Logeecom\Tests\Infrastructure\" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/composer" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/iio/libmergepdf" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/packlink/integration-core" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/setasign/fpdf" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/setasign/fpdi" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/setasign/fpdi-fpdf" />
+    </content>
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="sourceFolder" forTests="false" />
+  </component>
+</module>
