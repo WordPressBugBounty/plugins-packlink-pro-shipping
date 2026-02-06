@@ -8,12 +8,16 @@ use Logeecom\Infrastructure\ORM\RepositoryRegistry;
 use Logeecom\Infrastructure\ServiceRegister;
 use Logeecom\Infrastructure\TaskExecution\TaskEvents\TickEvent;
 use Logeecom\Infrastructure\Utility\Events\EventBus;
+use Packlink\BusinessLogic\CashOnDelivery\Interfaces\CashOnDeliveryServiceInterface;
+use Packlink\BusinessLogic\CashOnDelivery\Services\CashOnDeliveryService;
 use Packlink\BusinessLogic\Controllers\DashboardController;
 use Packlink\BusinessLogic\Controllers\DTO\DashboardStatus;
 use Packlink\BusinessLogic\Controllers\ShippingMethodController;
 use Packlink\BusinessLogic\Country\Country;
 use Packlink\BusinessLogic\Country\CountryService;
 use Packlink\BusinessLogic\Country\WarehouseCountryService;
+use Packlink\BusinessLogic\CountryLabels\CountryService as CountryLabelService;
+use Packlink\BusinessLogic\CountryLabels\Interfaces\CountryService as LabelServiceInterface;
 use Packlink\BusinessLogic\Customs\CustomsMapping;
 use Packlink\BusinessLogic\Customs\CustomsService;
 use Packlink\BusinessLogic\DTO\FrontDtoFactory;
@@ -21,15 +25,9 @@ use Packlink\BusinessLogic\DTO\ValidationError;
 use Packlink\BusinessLogic\FileResolver\FileResolverService;
 use Packlink\BusinessLogic\Http\DTO\ParcelInfo;
 use Packlink\BusinessLogic\Http\Proxy;
-use Packlink\BusinessLogic\CountryLabels\Interfaces\CountryService as LabelServiceInterface;
-use Packlink\BusinessLogic\CountryLabels\CountryService as CountryLabelService;
 use Packlink\BusinessLogic\Location\LocationService;
 use Packlink\BusinessLogic\OAuth\Models\OAuthState;
-use Packlink\BusinessLogic\OAuth\Proxy\Interfaces\OAuthProxyInterface;
-use Packlink\BusinessLogic\OAuth\Proxy\OAuthProxy;
-use Packlink\BusinessLogic\OAuth\Services\Interfaces\OAuthServiceInterface;
 use Packlink\BusinessLogic\OAuth\Services\Interfaces\OAuthStateServiceInterface;
-use Packlink\BusinessLogic\OAuth\Services\OAuthService;
 use Packlink\BusinessLogic\OAuth\Services\OAuthStateService;
 use Packlink\BusinessLogic\Order\OrderService;
 use Packlink\BusinessLogic\OrderShipmentDetails\OrderShipmentDetailsService;
@@ -177,6 +175,13 @@ class BootstrapComponent extends \Logeecom\Infrastructure\BootstrapComponent
             RegistrationService::CLASS_NAME,
             function () {
                 return RegistrationService::getInstance();
+            }
+        );
+
+        ServiceRegister::registerService(
+            CashOnDeliveryServiceInterface::CLASS_NAME,
+            function () {
+                return new CashOnDeliveryService();
             }
         );
 

@@ -27,6 +27,7 @@ class Packlink_Configuration_Controller extends Packlink_Base_Controller {
 	 */
 	public function get() {
 		$controller = new ConfigurationController();
+
 		$service    = ServiceRegister::getService( Configuration::CLASS_NAME );
 		$data       = array(
 			'helpUrl' => $controller->getHelpLink(),

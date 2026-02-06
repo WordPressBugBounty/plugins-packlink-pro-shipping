@@ -3,6 +3,28 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
+## [3.7.3](https://github.com/packlink-dev/ecommerce_module_core/compare/v3.7.2...v3.7.3) - 2026-02-04
+### Changed
+- Add weight conversions
+- Fixed service sync issue for AU, CA, and US
+
+## [3.7.2](https://github.com/packlink-dev/ecommerce_module_core/compare/v3.7.1...v3.7.2) - 2026-01-14
+### Changed
+- Add postal code for Lithuania
+- 
+## [3.7.1](https://github.com/packlink-dev/ecommerce_module_core/compare/v3.7.0...v3.7.1) - 2025-10-20
+### Changed
+- Add postal code for South Korea
+
+## [3.7.0](https://github.com/packlink-dev/ecommerce_module_core/compare/v3.6.7...v3.7.0) - 2025-10-14
+### Changed
+- Implemented cash on delivery feature
+- Fixed issue with Mondial drop off locations
+
+## [3.6.7](https://github.com/packlink-dev/ecommerce_module_core/compare/v3.6.6...v3.6.7) - 2025-10-03
+### Changed
+- Added logs to location service
+
 ## [3.6.5](https://github.com/packlink-dev/ecommerce_module_core/compare/v3.6.4...v3.6.5) - 2025-07-28
 ### Changed
 - Modify shipping services availability at checkout

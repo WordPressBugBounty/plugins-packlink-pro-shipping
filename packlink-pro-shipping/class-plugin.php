@@ -16,6 +16,7 @@ use Packlink\BusinessLogic\ShippingMethod\Utility\ShipmentStatus;
 use Packlink\WooCommerce\Components\Bootstrap_Component;
 use Packlink\WooCommerce\Components\Checkout\Block_Checkout_Handler;
 use Packlink\WooCommerce\Components\Checkout\Checkout_Handler;
+use Packlink\WooCommerce\Components\Checkout\Surcharge_Handler;
 use Packlink\WooCommerce\Components\Order\Paid_Order_Handler;
 use Packlink\WooCommerce\Components\Services\Config_Service;
 use Packlink\WooCommerce\Components\Services\Logger_Service;
@@ -214,6 +215,12 @@ class Plugin {
 		delete_transient( 'packlink-pro-success-messages' );
 	}
 
+	public function dismiss_admin_notices() {
+		$this->dismiss_notices();
+		$this->dismiss_success_notices();
+		$this->dismiss_error_notices();
+	}
+
 	/**
 	 * Initializes base Packlink PRO Shipping tables and values if plugin is accessed from a new site.
 	 */
@@ -229,16 +236,11 @@ class Plugin {
 	 * Loads plugin translations.
 	 */
 	public function load_plugin_text_domain() {
-		unload_textdomain( 'packlink-pro-shipping' );
 		load_plugin_textdomain(
 			'packlink-pro-shipping',
 			false,
-			plugin_basename( dirname( $this->packlink_plugin_file ) ) . '/languages'
+			dirname( plugin_basename( $this->packlink_plugin_file ) ) . '/languages'
 		);
-
-		$this->dismiss_notices();
-		$this->dismiss_success_notices();
-		$this->dismiss_error_notices();
 	}
 
 	/**
@@ -426,6 +428,71 @@ class Plugin {
 		}
 	}
 
+    /**
+     * Hides payment methods based on chosen shipping method.
+     *
+     * @param array $available_gateways
+     *
+     * @return array
+     * @throws QueryFilterInvalidParamException
+     * @throws RepositoryNotRegisteredException
+     */
+	public function filter_payment_gateways( $available_gateways ) {
+		// Backend never
+		if ( is_admin() ) {
+			return $available_gateways;
+		}
+
+		// If WC or session isn't ready, we are NOT in a context where chosen shipping is reliable.
+		if ( ! function_exists( 'WC' ) || ! WC() || ! WC()->session ) {
+			return $available_gateways;
+		}
+
+		$uri = $_SERVER['REQUEST_URI'] ?? '';
+
+		if (defined('REST_REQUEST') && REST_REQUEST && strpos($uri, '/wp-json/wc/') === false) {
+			return $available_gateways;
+		}
+
+		$is_wc_ajax =
+			(defined('WC_DOING_AJAX') && WC_DOING_AJAX)
+			|| (strpos($uri, 'wc-ajax=') !== false)
+			|| isset($_REQUEST['wc-ajax'])
+			|| (defined('DOING_AJAX') && DOING_AJAX);
+
+		$is_store_api = (defined('REST_REQUEST') && REST_REQUEST && strpos($uri, '/wp-json/wc/store/') !== false);
+
+		// Optional but recommended: only run where shipping choice exists.
+		// PayPal smart buttons can call this on product pages; we must ignore that.
+		if (!(is_checkout() || $is_wc_ajax || $is_store_api)) {
+			return $available_gateways;
+		}
+
+		$chosen_shipping_methods = WC()->session->get( 'chosen_shipping_methods' );
+		if ( empty( $chosen_shipping_methods ) || empty( $chosen_shipping_methods[0] ) ) {
+			return $available_gateways;
+		}
+
+		$chosen_shipping = $chosen_shipping_methods[0];
+
+		$parts = explode( ':', $chosen_shipping );
+		$method_id   = isset($parts[0]) ? $parts[0] : '';
+		$instance_id = isset($parts[1]) ? (int) $parts[1] : 0;
+
+		if ( $method_id !== Packlink_Shipping_Method::PACKLINK_SHIPPING_METHOD || $instance_id <= 0 ) {
+			return $available_gateways;
+		}
+
+		$packlink_method = Shipping_Method_Helper::get_packlink_shipping_method( $instance_id );
+		if ( ! $packlink_method ) {
+			return $available_gateways;
+		}
+
+		$cod_controller = new \Packlink\WooCommerce\Controllers\Packlink_Cash_On_Delivery_Controller();
+		return $cod_controller->get_available_payments( $packlink_method->getId(), $available_gateways );
+	}
+
+
 	/**
 	 * Initializes the plugin.
 	 *
@@ -456,9 +523,11 @@ class Plugin {
 		register_activation_hook( $this->packlink_plugin_file, array( $this, 'activate' ) );
 		register_deactivation_hook( $this->packlink_plugin_file, array( $this, 'deactivate' ) );
 		add_action( 'admin_init', array( $this, 'initialize_new_site' ) );
+		add_action( 'admin_init', [ $this, 'dismiss_admin_notices' ] );
+
 		add_filter( 'query_vars', array( $this, 'plugin_add_trigger' ) );
 		add_action( 'template_redirect', array( $this, 'plugin_trigger_check' ) );
-		add_action( 'plugins_loaded', array( $this, 'load_plugin_text_domain' ) );
+		add_action( 'init', array( $this, 'load_plugin_text_domain' ) );
 		add_action( 'admin_notices', array( $this, 'admin_messages' ) );
 		add_action( 'admin_notices', array( $this, 'admin_notice_messages_no_dismiss' ) );
 		add_action( 'admin_notices', array( $this, 'admin_error_messages' ) );
@@ -670,8 +739,11 @@ class Plugin {
 		$handler = new Checkout_Handler();
 		$block_handler = new Block_Checkout_Handler();
 
+        $surcharge_handle = new Surcharge_Handler();
+
 		add_filter( 'woocommerce_package_rates', array( $handler, 'check_additional_packlink_rate' ) );
-		add_action( 'woocommerce_after_shipping_rate', array( $handler, 'after_shipping_rate' ), 10, 2 );
+        add_filter( 'woocommerce_available_payment_gateways', array( $this, 'filter_payment_gateways' ));
+        add_action( 'woocommerce_after_shipping_rate', array( $handler, 'after_shipping_rate' ), 10, 2 );
 		add_action( 'woocommerce_after_shipping_calculator', array( $handler, 'after_shipping_calculator' ) );
 		add_action( 'woocommerce_review_order_after_shipping', array( $handler, 'after_shipping' ) );
 		add_action( 'woocommerce_checkout_process', array( $handler, 'checkout_process' ) );
@@ -679,7 +751,11 @@ class Plugin {
 		add_action( 'woocommerce_checkout_update_order_meta', array( $handler, 'checkout_update_drop_off' ), 10, 2 );
 		add_action( 'wp_enqueue_scripts', array( $handler, 'load_scripts' ) );
 
-		add_action('woocommerce_blocks_checkout_enqueue_data', array ($block_handler, 'load_data'));
+        add_action('woocommerce_checkout_create_order', array($surcharge_handle, 'add_surcharge_to_order'), 20, 1);
+
+        add_action( 'woocommerce_store_api_checkout_update_order_from_request', [ $surcharge_handle, 'add_surcharge_block' ], 10, 2 );
+
+        add_action('woocommerce_blocks_checkout_enqueue_data', array ($block_handler, 'load_data'));
 		add_action('woocommerce_store_api_checkout_update_order_meta', array ($block_handler, 'checkout_update_drop_off'));
 	}
 

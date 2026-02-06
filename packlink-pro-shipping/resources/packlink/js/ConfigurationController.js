@@ -75,6 +75,17 @@ if (!window.Packlink) {
                 });
             });
 
+            let cod = mainPage.querySelector('#pl-navigate-cod');
+            if (cod) {
+                cod.addEventListener('click', () => {
+                    state.goToState('cash-on-delivery', {
+                        'code': 'config',
+                        'prevState': 'configuration',
+                        'nextState': 'configuration',
+                    });
+                });
+            }
+
             ajaxService.get(config.getDataUrl, setConfigParams);
         };
     }

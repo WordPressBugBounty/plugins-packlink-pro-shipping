@@ -230,6 +230,14 @@ class PacklinkConfigurationService implements BrandConfigurationService
             'code' => 'MC',
             'postal_code' => '98000',
         ),
+        'KR' => array(
+            'code' => 'KR',
+            'postal_code' => '01000',
+        ),
+        'LT' => array(
+            'code' => 'LT',
+            'postal_code' => '01100',
+        ),
     );
 
     /**

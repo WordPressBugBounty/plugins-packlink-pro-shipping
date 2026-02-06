@@ -8,9 +8,12 @@ use Logeecom\Infrastructure\Http\Exceptions\HttpBaseException;
 use Logeecom\Infrastructure\Http\Exceptions\HttpCommunicationException;
 use Logeecom\Infrastructure\Http\Exceptions\HttpRequestException;
 use Logeecom\Infrastructure\Logger\Logger;
+use Logeecom\Infrastructure\ORM\Exceptions\QueryFilterInvalidParamException;
 use Logeecom\Infrastructure\ServiceRegister;
 use Packlink\BusinessLogic\BaseService;
+use Packlink\BusinessLogic\CashOnDelivery\Interfaces\CashOnDeliveryServiceInterface;
 use Packlink\BusinessLogic\Configuration;
+use Packlink\BusinessLogic\Http\DTO\CashOnDeliveryDetails;
 use Packlink\BusinessLogic\Http\DTO\Draft;
 use Packlink\BusinessLogic\Http\DTO\Package;
 use Packlink\BusinessLogic\Http\DTO\Shipment;
@@ -60,6 +63,11 @@ class OrderService extends BaseService
     protected $orderShipmentDetailsService;
 
     /**
+     * @var CashOnDeliveryServiceInterface
+     */
+    protected $cashOnDeliveryService;
+
+    /**
      * OrderService constructor.
      */
     protected function __construct()
@@ -69,6 +77,8 @@ class OrderService extends BaseService
         $this->shopOrderService = ServiceRegister::getService(ShopOrderService::CLASS_NAME);
         $this->orderShipmentDetailsService = ServiceRegister::getService(OrderShipmentDetailsService::CLASS_NAME);
         $this->configuration = ServiceRegister::getService(Configuration::CLASS_NAME);
+        $this->cashOnDeliveryService = ServiceRegister::getService(CashOnDeliveryServiceInterface::CLASS_NAME);
+
     }
 
     /**
@@ -335,8 +345,31 @@ class OrderService extends BaseService
         $this->addDepartureAddress($draft);
         $this->addDestinationAddress($order, $draft);
         $this->addAdditionalData($order, $draft);
+        $this->addCashOnDeliveryDetails($draft, $order->getTotalPrice(), $order->getPaymentId());
 
         return $draft;
+    }
+
+    /**
+     * @param Draft $draft
+     * @param float $totalAmount
+     * @param string $paymentMethod
+     */
+    private function addCashOnDeliveryDetails($draft, $totalAmount, $paymentMethod)
+    {
+        try {
+            $cashOnDelivery = $this->cashOnDeliveryService->getCashOnDeliveryConfig();
+        } catch (QueryFilterInvalidParamException $exception) {
+            return null;
+        }
+
+        if (!$cashOnDelivery || !$cashOnDelivery->getAccount() || !$cashOnDelivery->isActive() ||
+            $cashOnDelivery->getAccount()->getOfflinePaymentMethod() !== $paymentMethod) {
+            return;
+        }
+
+        $draft->cashOnDelivery = new CashOnDeliveryDetails($totalAmount,
+            $cashOnDelivery->getAccount()->getAccountHolderName(), $cashOnDelivery->getAccount()->getIban());
     }
 
     /**
@@ -458,12 +491,16 @@ class OrderService extends BaseService
     {
         $draft->content = array();
         $packages = array();
+
         foreach ($order->getItems() as $item) {
             $quantity = $item->getQuantity() ?: 1;
             $draft->content[] = $quantity . ' ' . $item->getTitle();
+
             for ($i = 0; $i < $quantity; $i++) {
+                $weight = $this->convertWeightUnits($item->getWeight());
+
                 $packages[] = new Package(
-                    $item->getWeight(),
+                    $weight,
                     $item->getWidth(),
                     $item->getHeight(),
                     $item->getLength()
@@ -474,5 +511,37 @@ class OrderService extends BaseService
         /** @var PackageTransformer $transformer */
         $transformer = ServiceRegister::getService(PackageTransformer::CLASS_NAME);
         $draft->packages = array($transformer->transform($packages));
+    }
+
+    /**
+     * Converts weight units into kg
+     *
+     * @param float $weight weight to be converted to kg
+     *
+     * @return float
+     */
+    protected function convertWeightUnits($weight)
+    {
+        $unit = $this->getStoreUnit();
+
+        switch ($unit) {
+            case 'g':
+                return $weight / 1000;
+            case 'oz':
+                return $weight * 0.02834952;
+            case 'lbs':
+                return $weight * 0.45359237;
+            case 'kg':
+            default:
+                return $weight;
+        }
+    }
+
+    /**
+     * @return string
+     */
+    protected function getStoreUnit()
+    {
+        return 'kg';
     }
 }

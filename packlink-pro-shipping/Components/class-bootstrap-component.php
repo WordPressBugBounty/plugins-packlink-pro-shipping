@@ -23,14 +23,19 @@ use Logeecom\Infrastructure\TaskExecution\QueueItem;
 use Packlink\Brands\Packlink\PacklinkConfigurationService;
 use Packlink\BusinessLogic\BootstrapComponent;
 use Packlink\BusinessLogic\Brand\BrandConfigurationService;
+use Packlink\BusinessLogic\CashOnDelivery\Model\CashOnDelivery;
+use Packlink\BusinessLogic\CashOnDelivery\Services\OfflinePaymentsServices;
 use Packlink\BusinessLogic\Country\WarehouseCountryService;
 use Packlink\BusinessLogic\FileResolver\FileResolverService;
 use Packlink\BusinessLogic\Order\Interfaces\ShopOrderService;
+use Packlink\BusinessLogic\Order\OrderService;
 use Packlink\BusinessLogic\OrderShipmentDetails\Models\OrderShipmentDetails;
 use Packlink\BusinessLogic\Registration\RegistrationInfoService;
 use Packlink\BusinessLogic\Scheduler\Models\Schedule;
 use Packlink\BusinessLogic\ShipmentDraft\Models\OrderSendDraftTaskMap;
 use Packlink\BusinessLogic\ShipmentDraft\ShipmentDraftService;
+use Packlink\WooCommerce\Components\Services\Offline_Payments_Service;
+use Packlink\WooCommerce\Components\Services\Order_Service;
 use Packlink\WooCommerce\Components\Services\Shipment_Draft_Service;
 use Packlink\BusinessLogic\ShippingMethod\Interfaces\ShopShippingMethodService;
 use Packlink\BusinessLogic\ShippingMethod\Models\ShippingMethod;
@@ -60,6 +65,13 @@ class Bootstrap_Component extends BootstrapComponent {
 		parent::initServices();
 
 		ServiceRegister::registerService(
+			OrderService::CLASS_NAME,
+			function () {
+				return Order_Service::getInstance();
+			}
+		);
+
+		ServiceRegister::registerService(
 			Serializer::CLASS_NAME,
 			function () {
 				return new NativeSerializer();
@@ -86,6 +98,13 @@ class Bootstrap_Component extends BootstrapComponent {
 				return Logger_Service::getInstance();
 			}
 		);
+
+        ServiceRegister::registerService(
+            OfflinePaymentsServices::CLASS_NAME,
+            static function () {
+                return new Offline_Payments_Service;
+            }
+        );
 
 		ServiceRegister::registerService(
 			ShopShippingMethodService::CLASS_NAME,
@@ -166,5 +185,6 @@ class Bootstrap_Component extends BootstrapComponent {
 		RepositoryRegistry::registerRepository( LogData::CLASS_NAME, Base_Repository::getClassName() );
 		RepositoryRegistry::registerRepository( OrderSendDraftTaskMap::CLASS_NAME, Base_Repository::getClassName() );
 		RepositoryRegistry::registerRepository( Order_Drop_Off_Map::CLASS_NAME, Base_Repository::getClassName() );
+        RepositoryRegistry::registerRepository(CashOnDelivery::getClassName(), Base_Repository::getClassName());
 	}
 }
