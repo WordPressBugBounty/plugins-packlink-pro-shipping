@@ -21,7 +21,7 @@ use Packlink\BusinessLogic\ShippingMethod\ShippingMethodService;
  *
  * @package Packlink\BusinessLogic\Location
  */
-class LocationService extends BaseService
+class LocationService extends BaseService implements \Packlink\BusinessLogic\Location\Interfaces\LocationServiceInterface
 {
     /**
      * Fully qualified name of this class.
@@ -59,7 +59,7 @@ class LocationService extends BaseService
     {
         parent::__construct();
 
-        $this->proxy = ServiceRegister::getService(Proxy::CLASS_NAME);
+        $this->proxy = ServiceRegister::getService(\Packlink\BusinessLogic\Http\Interfaces\Proxy::CLASS_NAME);
         $this->shippingMethodService = ServiceRegister::getService(ShippingMethodService::CLASS_NAME);
         $this->configuration = ServiceRegister::getService(Configuration::CLASS_NAME);
     }

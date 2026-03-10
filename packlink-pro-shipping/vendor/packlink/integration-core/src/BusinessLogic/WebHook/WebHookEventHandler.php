@@ -16,7 +16,7 @@ use Packlink\BusinessLogic\OrderShipmentDetails\Exceptions\OrderShipmentDetailsN
  *
  * @package Packlink\BusinessLogic\WebHook
  */
-class WebHookEventHandler extends BaseService
+class WebHookEventHandler extends BaseService implements Interfaces\WebHookEventHandlerInterface
 {
     /**
      * Singleton instance of this class.
@@ -103,7 +103,7 @@ class WebHookEventHandler extends BaseService
     protected function handleEvent($eventData)
     {
         /** @var Proxy $proxy */
-        $proxy = ServiceRegister::getService(Proxy::CLASS_NAME);
+        $proxy = ServiceRegister::getService(\Packlink\BusinessLogic\Http\Interfaces\Proxy::CLASS_NAME);
         try {
             /** @var \Packlink\BusinessLogic\Http\DTO\Shipment $shipment */
             $shipment = $proxy->getShipment($eventData->shipment_reference);

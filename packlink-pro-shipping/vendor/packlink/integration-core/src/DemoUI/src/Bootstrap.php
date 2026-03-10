@@ -15,31 +15,30 @@ use Logeecom\Infrastructure\Serializer\Serializer;
 use Logeecom\Infrastructure\ServiceRegister;
 use Logeecom\Infrastructure\TaskExecution\Process;
 use Logeecom\Infrastructure\TaskExecution\QueueItem;
+use Logeecom\Infrastructure\TaskExecution\Scheduler\Models\Schedule;
 use Logeecom\Tests\Infrastructure\Common\TestComponents\ORM\MemoryQueueItemRepository;
-use Logeecom\Tests\Infrastructure\Common\TestComponents\ORM\MemoryRepository;
 use Logeecom\Tests\Infrastructure\Common\TestComponents\TestRegistrationInfoService;
 use Packlink\Brands\Packlink\PacklinkConfigurationService;
 use Packlink\BusinessLogic\BootstrapComponent;
 use Packlink\BusinessLogic\Brand\BrandConfigurationService;
 use Packlink\BusinessLogic\Configuration;
-use Packlink\BusinessLogic\FileResolver\FileResolverService;
 use Packlink\BusinessLogic\CountryLabels\Interfaces\CountryService;
+use Packlink\BusinessLogic\FileResolver\FileResolverService;
 use Packlink\BusinessLogic\Http\Proxy;
 use Packlink\BusinessLogic\OAuth\Models\OAuthInfo;
 use Packlink\BusinessLogic\OAuth\Models\OAuthState;
 use Packlink\BusinessLogic\OAuth\Proxy\OAuthProxy;
 use Packlink\BusinessLogic\OAuth\Services\Interfaces\OAuthServiceInterface;
 use Packlink\BusinessLogic\OAuth\Services\Interfaces\OAuthStateServiceInterface;
-use Packlink\BusinessLogic\OAuth\Services\OAuthConfiguration;
 use Packlink\BusinessLogic\OAuth\Services\OAuthService;
 use Packlink\BusinessLogic\OAuth\Services\OAuthStateService;
 use Packlink\BusinessLogic\Order\Interfaces\ShopOrderService as ShopOrderServiceInterface;
 use Packlink\BusinessLogic\OrderShipmentDetails\Models\OrderShipmentDetails;
 use Packlink\BusinessLogic\Registration\RegistrationInfoService;
-use Packlink\BusinessLogic\Scheduler\Models\Schedule;
 use Packlink\BusinessLogic\ShipmentDraft\Models\OrderSendDraftTaskMap;
 use Packlink\BusinessLogic\ShippingMethod\Interfaces\ShopShippingMethodService;
 use Packlink\BusinessLogic\ShippingMethod\Models\ShippingMethod;
+use Packlink\BusinessLogic\SystemInformation\SystemInfoService as SystemInfoServiceInterface;
 use Packlink\BusinessLogic\User\UserAccountService;
 use Packlink\DemoUI\Brands\Acme\AcmeConfigurationService;
 use Packlink\DemoUI\Repository\SessionRepository;
@@ -48,7 +47,6 @@ use Packlink\DemoUI\Services\BusinessLogic\ConfigurationService;
 use Packlink\DemoUI\Services\BusinessLogic\CustomsMappingService;
 use Packlink\DemoUI\Services\BusinessLogic\OAuthConfigurationService;
 use Packlink\DemoUI\Services\BusinessLogic\ShopOrderService;
-use Packlink\BusinessLogic\SystemInformation\SystemInfoService as SystemInfoServiceInterface;
 use Packlink\DemoUI\Services\BusinessLogic\SystemInfoService;
 use Packlink\DemoUI\Services\Infrastructure\LoggerService;
 
@@ -90,10 +88,6 @@ class Bootstrap extends BootstrapComponent
      */
     private $carrierService;
     /**
-     * @var UserAccountService
-     */
-    private $userAccountService;
-    /**
      * @var RegistrationInfoService
      */
     private $registrationInfoService;
@@ -132,7 +126,6 @@ class Bootstrap extends BootstrapComponent
         $this->configService = $configService;
         $this->shopOrderService = new ShopOrderService();
         $this->carrierService = new CarrierService();
-        $this->userAccountService = UserAccountService::getInstance();
         $this->registrationInfoService = new TestRegistrationInfoService();
         $this->systemInfoService = new SystemInfoService();
         $this->customsService = new CustomsMappingService();
@@ -238,7 +231,13 @@ class Bootstrap extends BootstrapComponent
         ServiceRegister::registerService(
             UserAccountService::CLASS_NAME,
             function () use ($instance) {
-                return $instance->userAccountService;
+                $scheduler = ServiceRegister::getService(\Packlink\BusinessLogic\Scheduler\Interfaces\SchedulerInterface::class);
+
+                $orchestrator = ServiceRegister::getService(
+                    \Packlink\BusinessLogic\UpdateShippingServices\Interfaces\UpdateShippingServicesOrchestratorInterface::class
+                );
+
+                return new UserAccountService($orchestrator, $scheduler);
             }
         );
 

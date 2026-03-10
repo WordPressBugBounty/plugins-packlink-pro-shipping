@@ -4,11 +4,7 @@ namespace Packlink\BusinessLogic\User;
 
 use Logeecom\Infrastructure\Http\Exceptions\HttpBaseException;
 use Logeecom\Infrastructure\Logger\Logger;
-use Logeecom\Infrastructure\ORM\Interfaces\RepositoryInterface;
-use Logeecom\Infrastructure\ORM\RepositoryRegistry;
 use Logeecom\Infrastructure\ServiceRegister;
-use Logeecom\Infrastructure\TaskExecution\QueueService;
-use Packlink\BusinessLogic\BaseService;
 use Packlink\BusinessLogic\Brand\BrandConfigurationService;
 use Packlink\BusinessLogic\Brand\Exceptions\PlatformCountryNotSupportedByBrandException;
 use Packlink\BusinessLogic\Configuration;
@@ -16,33 +12,47 @@ use Packlink\BusinessLogic\Country\WarehouseCountryService;
 use Packlink\BusinessLogic\Http\DTO\Analytics;
 use Packlink\BusinessLogic\Http\DTO\User;
 use Packlink\BusinessLogic\Http\Proxy;
-use Packlink\BusinessLogic\Scheduler\Models\Schedule;
-use Packlink\BusinessLogic\Scheduler\Models\WeeklySchedule;
-use Packlink\BusinessLogic\Tasks\UpdateShippingServicesTask;
+use Packlink\BusinessLogic\Scheduler\DTO\ScheduleConfig;
+use Packlink\BusinessLogic\Scheduler\Interfaces\SchedulerInterface;
+use Packlink\BusinessLogic\Tasks\BusinessTasks\UpdateShippingServicesBusinessTask;
+use Packlink\BusinessLogic\UpdateShippingServices\Interfaces\UpdateShippingServicesOrchestratorInterface;
 
 /**
  * Class UserAccountService.
  *
  * @package Packlink\BusinessLogic\User
  */
-class UserAccountService extends BaseService
+class UserAccountService implements Interfaces\UserAccountServiceInterface
 {
     /**
      * Fully qualified name of this interface.
      */
     const CLASS_NAME = __CLASS__;
     /**
-     * Singleton instance of this class.
-     *
-     * @var static
+     * @var UpdateShippingServicesOrchestratorInterface
      */
-    protected static $instance;
+    private $updateShippingServicesOrchestrator;
+    /**
+     * @var SchedulerInterface
+     */
+    private $scheduler;
+
+    public function __construct(
+        UpdateShippingServicesOrchestratorInterface $updateShippingServicesOrchestrator,
+        SchedulerInterface $scheduler
+    )
+    {
+        $this->updateShippingServicesOrchestrator = $updateShippingServicesOrchestrator;
+        $this->scheduler = $scheduler;
+    }
+
     /**
      * Configuration service instance.
      *
      * @var Configuration
      */
     protected $configuration;
+
     /**
      * Proxy instance.
      *
@@ -64,7 +74,6 @@ class UserAccountService extends BaseService
      * @return bool TRUE if login went successfully; otherwise, FALSE.
      *
      * @throws \Logeecom\Infrastructure\ORM\Exceptions\RepositoryNotRegisteredException
-     * @throws \Logeecom\Infrastructure\TaskExecution\Exceptions\QueueStorageUnavailableException
      * @throws PlatformCountryNotSupportedByBrandException
      */
     public function login($apiKey)
@@ -167,7 +176,6 @@ class UserAccountService extends BaseService
      * @throws \Logeecom\Infrastructure\Http\Exceptions\HttpBaseException
      * @throws \Logeecom\Infrastructure\Http\Exceptions\HttpCommunicationException
      * @throws \Logeecom\Infrastructure\Http\Exceptions\HttpRequestException
-     * @throws \Logeecom\Infrastructure\TaskExecution\Exceptions\QueueStorageUnavailableException
      * @throws PlatformCountryNotSupportedByBrandException
      */
     protected function initializeUser(User $user)
@@ -179,20 +187,11 @@ class UserAccountService extends BaseService
         }
 
         $this->getConfigService()->setUserInfo($user);
-        $defaultQueueName = $this->getConfigService()->getDefaultQueueName();
-
-        /** @var QueueService $queueService */
-        $queueService = ServiceRegister::getService(QueueService::CLASS_NAME);
-
         $this->setDefaultParcel(true);
         $this->setWarehouseInfo(true);
 
         if ($this->getConfigService()->getDefaultWarehouse() !== null) {
-            $queueService->enqueue(
-                $defaultQueueName,
-                new UpdateShippingServicesTask(),
-                $this->getConfigService()->getContext()
-            );
+            $this->updateShippingServicesOrchestrator->enqueue($this->getConfigService()->getContext());
         }
 
         $webHookUrl = $this->getConfigService()->getWebHookUrl();
@@ -232,29 +231,22 @@ class UserAccountService extends BaseService
      */
     protected function createSchedules()
     {
-        $repository = RepositoryRegistry::getRepository(Schedule::CLASS_NAME);
-
-        $this->scheduleUpdateShipmentServicesTask($repository);
+        $this->scheduleUpdateShipmentServicesTask();
     }
 
     /**
-     * @param \Logeecom\Infrastructure\ORM\Interfaces\RepositoryInterface $repository
-     *
+     * @return void
      */
-    protected function scheduleUpdateShipmentServicesTask(RepositoryInterface $repository)
+    protected function scheduleUpdateShipmentServicesTask()
     {
-        // Schedule weekly task for updating services
-        $schedule = new WeeklySchedule(
-            new UpdateShippingServicesTask(),
-            $this->getConfigService()->getDefaultQueueName(),
-            $this->getConfigService()->getContext()
+        $this->scheduler->scheduleWeekly(
+            new UpdateShippingServicesBusinessTask(),
+            new ScheduleConfig(
+                rand(1, 7),
+                rand(0, 5),
+                rand(0, 59)
+            )
         );
-
-        $schedule->setDay(rand(1, 7));
-        $schedule->setHour(rand(0, 5));
-        $schedule->setMinute(rand(0, 59));
-        $schedule->setNextSchedule();
-        $repository->save($schedule);
     }
 
     /**
@@ -265,11 +257,12 @@ class UserAccountService extends BaseService
     protected function getProxy()
     {
         if ($this->proxy === null) {
-            $this->proxy = ServiceRegister::getService(Proxy::CLASS_NAME);
+            $this->proxy = ServiceRegister::getService(\Packlink\BusinessLogic\Http\Interfaces\Proxy::CLASS_NAME);
         }
 
         return $this->proxy;
     }
+
 
     /**
      * Returns an instance of configuration service.

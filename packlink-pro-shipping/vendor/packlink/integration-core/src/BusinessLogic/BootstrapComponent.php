@@ -6,20 +6,20 @@ use Logeecom\Infrastructure\AutoTest\AutoTestService;
 use Logeecom\Infrastructure\Http\HttpClient;
 use Logeecom\Infrastructure\ORM\RepositoryRegistry;
 use Logeecom\Infrastructure\ServiceRegister;
-use Logeecom\Infrastructure\TaskExecution\TaskEvents\TickEvent;
-use Logeecom\Infrastructure\Utility\Events\EventBus;
+use Logeecom\Infrastructure\TaskExecutor\Interfaces\TaskExecutorInterface;
+use Logeecom\Infrastructure\TaskExecutor\Interfaces\TaskStatusProviderInterface;
 use Packlink\BusinessLogic\CashOnDelivery\Interfaces\CashOnDeliveryServiceInterface;
 use Packlink\BusinessLogic\CashOnDelivery\Services\CashOnDeliveryService;
 use Packlink\BusinessLogic\Controllers\DashboardController;
 use Packlink\BusinessLogic\Controllers\DTO\DashboardStatus;
 use Packlink\BusinessLogic\Controllers\ShippingMethodController;
-use Packlink\BusinessLogic\Country\Country;
 use Packlink\BusinessLogic\Country\CountryService;
+use Packlink\BusinessLogic\Country\Models\Country;
 use Packlink\BusinessLogic\Country\WarehouseCountryService;
 use Packlink\BusinessLogic\CountryLabels\CountryService as CountryLabelService;
 use Packlink\BusinessLogic\CountryLabels\Interfaces\CountryService as LabelServiceInterface;
-use Packlink\BusinessLogic\Customs\CustomsMapping;
 use Packlink\BusinessLogic\Customs\CustomsService;
+use Packlink\BusinessLogic\Customs\Models\CustomsMapping;
 use Packlink\BusinessLogic\DTO\FrontDtoFactory;
 use Packlink\BusinessLogic\DTO\ValidationError;
 use Packlink\BusinessLogic\FileResolver\FileResolverService;
@@ -34,13 +34,19 @@ use Packlink\BusinessLogic\OrderShipmentDetails\OrderShipmentDetailsService;
 use Packlink\BusinessLogic\Registration\RegistrationLegalPolicy;
 use Packlink\BusinessLogic\Registration\RegistrationRequest;
 use Packlink\BusinessLogic\Registration\RegistrationService;
-use Packlink\BusinessLogic\Scheduler\ScheduleTickHandler;
-use Packlink\BusinessLogic\ShipmentDraft\OrderSendDraftTaskMapService;
+use Packlink\BusinessLogic\Scheduler\Interfaces\SchedulerInterface;
+use Packlink\BusinessLogic\ShipmentDraft\Interfaces\ShipmentDraftServiceInterface;
 use Packlink\BusinessLogic\ShipmentDraft\ShipmentDraftService;
 use Packlink\BusinessLogic\ShippingMethod\Models\ShippingPricePolicy;
 use Packlink\BusinessLogic\ShippingMethod\PackageTransformer;
 use Packlink\BusinessLogic\ShippingMethod\ShippingMethodService;
+use Packlink\BusinessLogic\UpdateShippingServices\Interfaces\UpdateShippingServicesOrchestratorInterface;
+use Packlink\BusinessLogic\UpdateShippingServices\Interfaces\UpdateShippingServiceTaskStatusServiceInterface;
+use Packlink\BusinessLogic\UpdateShippingServices\Models\UpdateShippingServiceTaskStatus;
+use Packlink\BusinessLogic\UpdateShippingServices\UpdateShippingServicesOrchestrator;
+use Packlink\BusinessLogic\UpdateShippingServices\UpdateShippingServiceTaskStatusService;
 use Packlink\BusinessLogic\User\UserAccountService;
+use Packlink\BusinessLogic\Warehouse\Interfaces\WarehouseServiceInterface;
 use Packlink\BusinessLogic\Warehouse\Warehouse;
 use Packlink\BusinessLogic\Warehouse\WarehouseService;
 
@@ -69,7 +75,7 @@ class BootstrapComponent extends \Logeecom\Infrastructure\BootstrapComponent
         parent::initServices();
 
         ServiceRegister::registerService(
-            Proxy::CLASS_NAME,
+            \Packlink\BusinessLogic\Http\Interfaces\Proxy::CLASS_NAME,
             function () {
                 /** @var Configuration $config */
                 $config = ServiceRegister::getService(Configuration::CLASS_NAME);
@@ -81,9 +87,46 @@ class BootstrapComponent extends \Logeecom\Infrastructure\BootstrapComponent
         );
 
         ServiceRegister::registerService(
+            UpdateShippingServiceTaskStatusServiceInterface::class,
+            function () {
+                $repo = RepositoryRegistry::getRepository(UpdateShippingServiceTaskStatus::CLASS_NAME);
+
+                return new UpdateShippingServiceTaskStatusService($repo);
+            }
+        );
+
+
+        ServiceRegister::registerService(
+            UpdateShippingServicesOrchestratorInterface::class,
+            function () {
+                /**
+                 * @var TaskExecutorInterface $taskExecutor
+                 */
+                $taskExecutor = ServiceRegister::getService(TaskExecutorInterface::class);
+
+                /**
+                 * @var UpdateShippingServiceTaskStatusServiceInterface $updateShippingService
+                 */
+                $updateShippingService = ServiceRegister::getService(UpdateShippingServiceTaskStatusServiceInterface::class);
+
+
+                return new UpdateShippingServicesOrchestrator(
+                    $taskExecutor,
+                    $updateShippingService
+                );
+            }
+        );
+
+        ServiceRegister::registerService(
             UserAccountService::CLASS_NAME,
             function () {
-                return UserAccountService::getInstance();
+                /** @var SchedulerInterface $scheduler */
+                $scheduler = ServiceRegister::getService(SchedulerInterface::class);
+
+                /** @var UpdateShippingServicesOrchestratorInterface $orchestrator */
+                $orchestrator = ServiceRegister::getService(UpdateShippingServicesOrchestratorInterface::class);
+
+                return new UserAccountService($orchestrator, $scheduler);
             }
         );
 
@@ -137,23 +180,22 @@ class BootstrapComponent extends \Logeecom\Infrastructure\BootstrapComponent
         );
 
         ServiceRegister::registerService(
-            OrderSendDraftTaskMapService::CLASS_NAME,
+            ShipmentDraftServiceInterface::CLASS_NAME,
             function () {
-                return OrderSendDraftTaskMapService::getInstance();
+                /**@var TaskExecutorInterface $taskExecutor */
+                $taskExecutor = ServiceRegister::getService(TaskExecutorInterface::CLASS_NAME);
+
+                return new ShipmentDraftService($taskExecutor);
             }
         );
 
         ServiceRegister::registerService(
-            ShipmentDraftService::CLASS_NAME,
+            WarehouseServiceInterface::CLASS_NAME,
             function () {
-                return ShipmentDraftService::getInstance();
-            }
-        );
+                /** @var UpdateShippingServicesOrchestratorInterface $orchestrator */
+                $orchestrator = ServiceRegister::getService(UpdateShippingServicesOrchestratorInterface::class);
 
-        ServiceRegister::registerService(
-            WarehouseService::CLASS_NAME,
-            function () {
-                return WarehouseService::getInstance();
+                return new WarehouseService($orchestrator);
             }
         );
 
@@ -179,7 +221,7 @@ class BootstrapComponent extends \Logeecom\Infrastructure\BootstrapComponent
         );
 
         ServiceRegister::registerService(
-            CashOnDeliveryServiceInterface::CLASS_NAME,
+           CashOnDeliveryServiceInterface::CLASS_NAME,
             function () {
                 return new CashOnDeliveryService();
             }
@@ -210,7 +252,13 @@ class BootstrapComponent extends \Logeecom\Infrastructure\BootstrapComponent
         ServiceRegister::registerService(
             AutoTestService::CLASS_NAME,
             function () {
-                return new AutoTestService();
+                /**@var TaskExecutorInterface $taskExecutor */
+                $taskExecutor = ServiceRegister::getService(TaskExecutorInterface::CLASS_NAME);
+
+                /**@var TaskStatusProviderInterface $statusProvider */
+                $statusProvider = ServiceRegister::getService(TaskStatusProviderInterface::CLASS_NAME);
+
+                return new AutoTestService($taskExecutor, $statusProvider);
             }
         );
 
@@ -226,26 +274,6 @@ class BootstrapComponent extends \Logeecom\Infrastructure\BootstrapComponent
             function () {
                 $repository = RepositoryRegistry::getRepository(OAuthState::CLASS_NAME);
                 return new OAuthStateService($repository);
-            }
-        );
-    }
-
-    /**
-     * Initializes events.
-     */
-    protected static function initEvents()
-    {
-        parent::initEvents();
-
-        /** @var EventBus $eventBuss */
-        $eventBuss = ServiceRegister::getService(EventBus::CLASS_NAME);
-
-        // subscribe tick event listener
-        $eventBuss->when(
-            TickEvent::CLASS_NAME,
-            function () {
-                $handler = new ScheduleTickHandler();
-                $handler->handle();
             }
         );
     }

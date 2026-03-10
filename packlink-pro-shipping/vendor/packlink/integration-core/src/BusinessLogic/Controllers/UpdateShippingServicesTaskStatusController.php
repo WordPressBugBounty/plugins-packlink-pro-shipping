@@ -2,12 +2,9 @@
 
 namespace Packlink\BusinessLogic\Controllers;
 
-use Logeecom\Infrastructure\ORM\QueryFilter\Operators;
-use Logeecom\Infrastructure\ORM\QueryFilter\QueryFilter;
-use Logeecom\Infrastructure\ORM\RepositoryRegistry;
-use Logeecom\Infrastructure\ServiceRegister;
-use Logeecom\Infrastructure\TaskExecution\QueueItem;
-use Logeecom\Infrastructure\Utility\TimeProvider;
+use Logeecom\Infrastructure\TaskExecutor\Model\TaskStatus;
+use Packlink\BusinessLogic\UpdateShippingServices\Interfaces\UpdateShippingServiceTaskStatusServiceInterface;
+use Packlink\BusinessLogic\UpdateShippingServices\Models\UpdateShippingServiceTaskStatus;
 
 /**
  * Class UpdateShippingServicesTaskStatusController.
@@ -16,6 +13,20 @@ use Logeecom\Infrastructure\Utility\TimeProvider;
  */
 class UpdateShippingServicesTaskStatusController
 {
+    /**
+     * @var UpdateShippingServiceTaskStatusServiceInterface
+     */
+    private $statusService;
+
+    /**
+     * @param UpdateShippingServiceTaskStatusServiceInterface $statusService
+     */
+    public function __construct(
+        UpdateShippingServiceTaskStatusServiceInterface $statusService
+    ) {
+        $this->statusService = $statusService;
+    }
+
     /**
      * Checks the status of the task responsible for getting services.
      *
@@ -31,49 +42,16 @@ class UpdateShippingServicesTaskStatusController
      * @throws \Logeecom\Infrastructure\ORM\Exceptions\QueryFilterInvalidParamException
      * @throws \Logeecom\Infrastructure\ORM\Exceptions\RepositoryClassException
      * @throws \Logeecom\Infrastructure\ORM\Exceptions\RepositoryNotRegisteredException
-     * @throws \Logeecom\Infrastructure\TaskExecution\Exceptions\QueueItemDeserializationException
      */
     public function getLastTaskStatus($context = '')
     {
-        $repo = RepositoryRegistry::getQueueItemRepository();
-        $filter = $this->buildCondition($context);
-        $filter->orderBy('queueTime', 'DESC');
+        /** @var UpdateShippingServiceTaskStatus|null $entity */
+        $entity = $this->statusService->getLatestByContext((string)$context);
 
-        $item = $repo->selectOne($filter);
-        if ($item) {
-            $status = $item->getStatus();
-            if ($status === QueueItem::FAILED || $status === QueueItem::COMPLETED) {
-                return $status;
-            }
-
-            /** @var TimeProvider $timeProvider */
-            $timeProvider = ServiceRegister::getService(TimeProvider::CLASS_NAME);
-            $currentTimestamp = $timeProvider->getCurrentLocalTime()->getTimestamp();
-            $taskTimestamp = $item->getLastUpdateTimestamp() ?: $item->getQueueTimestamp();
-            $expired = $taskTimestamp + $item->getTask()->getMaxInactivityPeriod() < $currentTimestamp;
-
-            return $expired ? QueueItem::FAILED : $status;
+        if (!$entity) {
+            return TaskStatus::NOT_FOUND;
         }
 
-        return QueueItem::QUEUED;
-    }
-
-    /**
-     * Builds query condition.
-     *
-     * @param string $context
-     *
-     * @return \Logeecom\Infrastructure\ORM\QueryFilter\QueryFilter
-     * @throws \Logeecom\Infrastructure\ORM\Exceptions\QueryFilterInvalidParamException
-     */
-    protected function buildCondition($context = '')
-    {
-        $filter = new QueryFilter();
-        $filter->where('taskType', Operators::EQUALS, 'UpdateShippingServicesTask');
-        if (!empty($context)) {
-            $filter->where('context', Operators::EQUALS, $context);
-        }
-
-        return $filter;
+        return $entity->getStatus();
     }
 }

@@ -43,12 +43,18 @@ class GuidProvider
     }
 
     /**
-     * Generates random string.
+     * Generates a cryptographically secure unique identifier.
      *
-     * @return string Generated string.
+     * @return string
+     *
+     * @throws \RuntimeException
      */
     public function generateGuid()
     {
-        return uniqid(getmypid() . '_', true);
+        try {
+            return bin2hex(random_bytes(32));
+        } catch (\Exception $e) {
+            throw new \RuntimeException('Unable to generate GUID.', 0, $e);
+        }
     }
 }

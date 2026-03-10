@@ -7,12 +7,13 @@ use Logeecom\Infrastructure\Exceptions\StorageNotAccessibleException;
 use Logeecom\Infrastructure\Logger\Interfaces\ShopLoggerAdapter;
 use Logeecom\Infrastructure\Logger\LogData;
 use Logeecom\Infrastructure\Logger\Logger;
-use Logeecom\Infrastructure\ORM\QueryFilter\Operators;
-use Logeecom\Infrastructure\ORM\QueryFilter\QueryFilter;
 use Logeecom\Infrastructure\ORM\RepositoryRegistry;
 use Logeecom\Infrastructure\ServiceRegister;
-use Logeecom\Infrastructure\TaskExecution\QueueItem;
-use Logeecom\Infrastructure\TaskExecution\QueueService;
+use Logeecom\Infrastructure\TaskExecution\Interfaces\TaskRunnerConfigInterface;
+use Logeecom\Infrastructure\TaskExecutor\Interfaces\TaskExecutorInterface;
+use Logeecom\Infrastructure\TaskExecutor\Interfaces\TaskStatusProviderInterface;
+use Logeecom\Infrastructure\TaskExecutor\Model\TaskStatus;
+use Packlink\BusinessLogic\Tasks\BusinessTasks\AutoTestBusinessTask;
 
 /**
  * Class AutoTestService.
@@ -29,14 +30,39 @@ class AutoTestService
      * @var Configuration
      */
     private $configService;
+    /**
+     * @var TaskExecutorInterface
+     */
+    private $taskExecutor;
+    /**
+     * @var TaskStatusProviderInterface
+     */
+
+    /**
+     * @var TaskRunnerConfigInterface|null
+     */
+    private $taskRunnerConfig;
+
+    /**
+     * @var TaskStatusProviderInterface
+     */
+    private $statusProvider;
+
+    public function __construct(
+        TaskExecutorInterface $taskExecutor,
+        TaskStatusProviderInterface $statusProvider,
+        TaskRunnerConfigInterface $taskRunnerConfig = null
+    )
+    {
+        $this->taskExecutor = $taskExecutor;
+        $this->statusProvider = $statusProvider;
+        $this->taskRunnerConfig = $taskRunnerConfig;
+    }
 
     /**
      * Starts the auto-test.
      *
-     * @return int The queue item ID.
-     *
-     * @throws \Logeecom\Infrastructure\Exceptions\StorageNotAccessibleException
-     * @throws \Logeecom\Infrastructure\TaskExecution\Exceptions\QueueStorageUnavailableException
+     * @throws StorageNotAccessibleException
      */
     public function startAutoTest()
     {
@@ -50,11 +76,9 @@ class AutoTestService
 
         $this->logHttpOptions();
 
-        /** @var QueueService $queueService */
-        $queueService = ServiceRegister::getService(QueueService::CLASS_NAME);
-        $queueItem = $queueService->enqueue('Auto-test', new AutoTestTask('DUMMY TEST DATA'));
+        $this->taskExecutor->enqueue(new AutoTestBusinessTask('DUMMY TEST DATA'));
 
-        return $queueItem->getId();
+        return (int)time();
     }
 
     /**
@@ -80,44 +104,36 @@ class AutoTestService
     /**
      * Gets the status of the auto-test task.
      *
-     * @param int $queueItemId The ID of the queue item that started the task.
+     * @param int $queueItemId The ID of the auto-test task (unused).
      *
      * @return AutoTestStatus The status of the auto-test task.
-     *
-     * @throws \Logeecom\Infrastructure\ORM\Exceptions\QueryFilterInvalidParamException
-     * @throws \Logeecom\Infrastructure\ORM\Exceptions\RepositoryClassException
-     * @throws \Logeecom\Infrastructure\ORM\Exceptions\RepositoryNotRegisteredException
      */
     public function getAutoTestTaskStatus($queueItemId = 0)
     {
         $this->setAutoTestMode();
 
-        $filter = new QueryFilter();
-        if ($queueItemId) {
-            $filter->where('id', Operators::EQUALS, $queueItemId);
-        } else {
-            $filter->where('taskType', Operators::EQUALS, 'AutoTestTask');
-            $filter->orderBy('queueTime', 'DESC');
-        }
+        $context = $this->getConfigService()->getContext();
 
-        $status = '';
-        $item = RepositoryRegistry::getQueueItemRepository()->selectOne($filter);
-        if ($item) {
-            if ($item->getStatus() === QueueItem::QUEUED && $item->getQueueTimestamp() < time() - 30) {
-                // if item is queued and task runner did not start it within 30 seconds, task expired
-                Logger::logError('Auto-test task did not finish within expected time frame.');
+        /** @var \Logeecom\Infrastructure\TaskExecutor\Model\TaskStatus $result */
+        $result = $this->statusProvider->getLatestStatus(
+            'AutoTestBusinessTask',
+            $context ? $context : ''
+        );
 
-                $status = 'timeout';
-            } else {
-                $status = $item->getStatus();
-            }
+        $status = $result->getStatus();
+        $logs = AutoTestLogger::getInstance()->getLogs();
+
+        if ($status === TaskStatus::PENDING && $this->isQueuedTimeout($logs)) {
+            Logger::logError('Auto-test task did not finish within expected time frame.');
+            $status = 'timeout';
         }
+        $error = $status === 'timeout' ? 'Task could not be started.' : ($result->getMessage() ?? '');
 
         return new AutoTestStatus(
             $status,
-            in_array($status, array('timeout', QueueItem::COMPLETED, QueueItem::FAILED), true),
-            $status === 'timeout' ? 'Task could not be started.' : '',
-            AutoTestLogger::getInstance()->getLogs()
+            in_array($status, array('timeout', 'completed', 'failed'), true),
+            $error,
+            $logs
         );
     }
 
@@ -154,7 +170,13 @@ class AutoTestService
      */
     protected function logHttpOptions()
     {
-        $testDomain = parse_url($this->getConfigService()->getAsyncProcessUrl(''), PHP_URL_HOST);
+        $testDomain = '';
+
+        if ($this->taskRunnerConfig) {
+            $asyncUrl = $this->taskRunnerConfig->getAsyncProcessUrl('');
+            $testDomain = parse_url($asyncUrl, PHP_URL_HOST);
+        }
+
         $options = array();
         foreach ($this->getConfigService()->getHttpConfigurationOptions($testDomain) as $option) {
             $options[$option->getName()] = $option->getValue();
@@ -175,5 +197,46 @@ class AutoTestService
         }
 
         return $this->configService;
+    }
+
+    /**
+     * Determines if queued status exceeded the timeout window.
+     *
+     * @param LogData[] $logs
+     *
+     * @return bool
+     */
+    private function isQueuedTimeout(array $logs)
+    {
+        $autoTestStart = $this->findLatestLogByMessage($logs, 'Start auto-test');
+        if ($autoTestStart === null) {
+            return false;
+        }
+
+        return $autoTestStart->getTimestamp() < time() - 30;
+    }
+
+    /**
+     * Finds latest log by message.
+     *
+     * @param LogData[] $logs
+     * @param string $message
+     *
+     * @return LogData|null
+     */
+    private function findLatestLogByMessage(array $logs, $message)
+    {
+        $latest = null;
+        foreach ($logs as $log) {
+            if ($log->getMessage() !== $message) {
+                continue;
+            }
+
+            if ($latest === null || $log->getTimestamp() > $latest->getTimestamp()) {
+                $latest = $log;
+            }
+        }
+
+        return $latest;
     }
 }

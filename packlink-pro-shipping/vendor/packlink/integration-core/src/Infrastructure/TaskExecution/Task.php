@@ -2,13 +2,13 @@
 
 namespace Logeecom\Infrastructure\TaskExecution;
 
-use Logeecom\Infrastructure\Configuration\Configuration;
 use Logeecom\Infrastructure\Serializer\Interfaces\Serializable;
 use Logeecom\Infrastructure\Serializer\Serializer;
 use Logeecom\Infrastructure\ServiceRegister;
-use Logeecom\Infrastructure\TaskExecution\Interfaces\Priority;
+use Logeecom\Infrastructure\TaskExecution\Interfaces\TaskRunnerConfigInterface;
 use Logeecom\Infrastructure\TaskExecution\TaskEvents\AliveAnnouncedTaskEvent;
 use Logeecom\Infrastructure\TaskExecution\TaskEvents\TaskProgressEvent;
+use Logeecom\Infrastructure\TaskExecutor\Interfaces\Priority;
 use Logeecom\Infrastructure\Utility\Events\EventEmitter;
 use Logeecom\Infrastructure\Utility\TimeProvider;
 
@@ -35,7 +35,7 @@ abstract class Task extends EventEmitter implements Serializable
     /**
      * An instance of Configuration service.
      *
-     * @var Configuration
+     * @var TaskRunnerConfigInterface
      */
     private $configService;
     /**
@@ -126,7 +126,7 @@ abstract class Task extends EventEmitter implements Serializable
      */
     public function getMaxInactivityPeriod()
     {
-        $configurationValue = $this->getConfigService()->getMaxTaskInactivityPeriod();
+        $configurationValue = $this->getTaskRunnerConfig()->getMaxTaskInactivityPeriod();
 
         return $configurationValue !== null ? $configurationValue : static::MAX_INACTIVITY_PERIOD;
     }
@@ -211,12 +211,12 @@ abstract class Task extends EventEmitter implements Serializable
     /**
      * Gets Configuration service.
      *
-     * @return Configuration Service instance.
+     * @return TaskRunnerConfigInterface Service instance.
      */
-    protected function getConfigService()
+    protected function getTaskRunnerConfig()
     {
         if ($this->configService === null) {
-            $this->configService = ServiceRegister::getService(Configuration::CLASS_NAME);
+            $this->configService = ServiceRegister::getService(TaskRunnerConfigInterface::CLASS_NAME);
         }
 
         return $this->configService;

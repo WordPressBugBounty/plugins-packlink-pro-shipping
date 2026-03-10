@@ -2,7 +2,9 @@
 
 namespace Packlink\DemoUI\Controllers;
 
-use Packlink\BusinessLogic\Tasks\UpdateShippingServicesTask;
+use Logeecom\Infrastructure\Configuration\Configuration;
+use Logeecom\Infrastructure\ServiceRegister;
+use Packlink\BusinessLogic\UpdateShippingServices\Interfaces\UpdateShippingServicesOrchestratorInterface;
 use Packlink\DemoUI\Controllers\Models\Request;
 use Packlink\DemoUI\Services\Integration\UrlService;
 
@@ -14,9 +16,18 @@ use Packlink\DemoUI\Services\Integration\UrlService;
 class LoginController extends BaseHttpController
 {
     /**
+     * @var UpdateShippingServicesOrchestratorInterface
+     */
+    private $updateShippingServicesOrchestrator;
+    /**
      * @var bool
      */
     protected $requiresAuthentication = false;
+
+    public function __construct(UpdateShippingServicesOrchestratorInterface $updateShippingServicesOrchestrator)
+    {
+        $this->updateShippingServicesOrchestrator = $updateShippingServicesOrchestrator;
+    }
 
     /**
      * Handles login POST request.
@@ -38,9 +49,9 @@ class LoginController extends BaseHttpController
 
         $success = $controller->login($apiKey);
         if ($success) {
-            // this is only for the Demo app because there is no task runner
-            $task = new UpdateShippingServicesTask();
-            $task->execute();
+            /** @var Configuration $configService */
+            $configService = ServiceRegister::getService(Configuration::CLASS_NAME);
+            $this->updateShippingServicesOrchestrator->enqueue($configService->getContext());
         }
 
         $this->output(array('success' => $success));

@@ -3,32 +3,30 @@
 namespace Packlink\BusinessLogic\Warehouse;
 
 use Logeecom\Infrastructure\ServiceRegister;
-use Logeecom\Infrastructure\TaskExecution\QueueService;
-use Packlink\BusinessLogic\BaseService;
 use Packlink\BusinessLogic\Configuration;
 use Packlink\BusinessLogic\DTO\Exceptions\FrontDtoValidationException;
 use Packlink\BusinessLogic\DTO\FrontDtoFactory;
 use Packlink\BusinessLogic\DTO\ValidationError;
 use Packlink\BusinessLogic\Http\Proxy;
-use Packlink\BusinessLogic\Tasks\UpdateShippingServicesTask;
+use Packlink\BusinessLogic\UpdateShippingServices\Interfaces\UpdateShippingServicesOrchestratorInterface;
+use Packlink\BusinessLogic\Warehouse\Interfaces\WarehouseServiceInterface;
 
 /**
  * Class WarehouseService.
  *
  * @package Packlink\BusinessLogic\Warehouse
  */
-class WarehouseService extends BaseService
+class WarehouseService implements WarehouseServiceInterface
 {
     /**
-     * Fully qualified name of this class.
+     * @var UpdateShippingServicesOrchestratorInterface
      */
-    const CLASS_NAME = __CLASS__;
-    /**
-     * Singleton instance of this class.
-     *
-     * @var static
-     */
-    protected static $instance;
+    private $orchestrator;
+
+    public function __construct(UpdateShippingServicesOrchestratorInterface $orchestrator)
+    {
+        $this->orchestrator = $orchestrator;
+    }
 
     /**
      * Gets a warehouse.
@@ -59,11 +57,10 @@ class WarehouseService extends BaseService
      *
      * @return \Packlink\BusinessLogic\Warehouse\Warehouse
      *
-     * @throws \Logeecom\Infrastructure\TaskExecution\Exceptions\QueueStorageUnavailableException
      * @throws \Packlink\BusinessLogic\DTO\Exceptions\FrontDtoNotRegisteredException
      * @throws \Packlink\BusinessLogic\DTO\Exceptions\FrontDtoValidationException
      */
-    public function updateWarehouseData(array $payload)
+    public function updateWarehouseData($payload)
     {
         $validationErrors = array();
         try {
@@ -80,8 +77,6 @@ class WarehouseService extends BaseService
 
         /** @var \Packlink\BusinessLogic\Configuration $configService */
         $configService = ServiceRegister::getService(Configuration::CLASS_NAME);
-        /** @var \Logeecom\Infrastructure\TaskExecution\QueueService $queueService */
-        $queueService = ServiceRegister::getService(QueueService::CLASS_NAME);
 
         $oldWarehouse = $configService->getDefaultWarehouse();
 
@@ -89,11 +84,7 @@ class WarehouseService extends BaseService
         if ($oldWarehouse === null
             || $oldWarehouse->country !== $warehouse->country
         ) {
-            $queueService->enqueue(
-                $configService->getDefaultQueueName(),
-                new UpdateShippingServicesTask(),
-                $configService->getContext()
-            );
+            $this->orchestrator->enqueue($configService->getContext());
         }
 
         return $warehouse;
@@ -109,7 +100,7 @@ class WarehouseService extends BaseService
      * @noinspection PhpUnhandledExceptionInspection
      * @noinspection PhpDocMissingThrowsInspection
      */
-    protected function validatePostalCode(array $payload)
+    protected function validatePostalCode(array $payload): array
     {
         $validationErrors = array();
 
@@ -122,7 +113,7 @@ class WarehouseService extends BaseService
 
             try {
                 /** @var Proxy $proxy */
-                $proxy = ServiceRegister::getService(Proxy::CLASS_NAME);
+                $proxy = ServiceRegister::getService(\Packlink\BusinessLogic\Http\Interfaces\Proxy::CLASS_NAME);
                 $postalCodes = $proxy->getPostalCodes($payload['country'], $payload['postal_code']);
                 if (empty($postalCodes)) {
                     $validationErrors[] = FrontDtoFactory::get(ValidationError::CLASS_KEY, $postalCodeError);

@@ -4,9 +4,8 @@ namespace Packlink\BusinessLogic\Controllers;
 
 use Logeecom\Infrastructure\Configuration\Configuration;
 use Logeecom\Infrastructure\ServiceRegister;
-use Logeecom\Infrastructure\TaskExecution\QueueService;
+use Packlink\BusinessLogic\UpdateShippingServices\Interfaces\UpdateShippingServicesOrchestratorInterface;
 use Packlink\BusinessLogic\Http\DTO\ParcelInfo;
-use Packlink\BusinessLogic\Tasks\UpdateShippingServicesTask;
 use Packlink\DemoUI\Services\BusinessLogic\ConfigurationService;
 
 class DefaultParcelController
@@ -15,6 +14,16 @@ class DefaultParcelController
      * @var ConfigurationService
      */
     private $configService;
+
+    /**
+     * @var UpdateShippingServicesOrchestratorInterface
+     */
+    private $orchestrator;
+
+    public function __construct(UpdateShippingServicesOrchestratorInterface $orchestrator)
+    {
+        $this->orchestrator = $orchestrator;
+    }
 
     /**
      * Gets default parcel.
@@ -31,7 +40,6 @@ class DefaultParcelController
      *
      * @param array $rawData
      *
-     * @throws \Logeecom\Infrastructure\TaskExecution\Exceptions\QueueStorageUnavailableException
      * @throws \Packlink\BusinessLogic\DTO\Exceptions\FrontDtoValidationException
      */
     public function setDefaultParcel(array $rawData)
@@ -43,15 +51,7 @@ class DefaultParcelController
         $this->getConfigService()->setDefaultParcel($parcelInfo);
 
         if ($oldParcel === null || array_diff($oldParcel->toArray(), $parcelInfo->toArray())) {
-            /** @var QueueService $queueService */
-            $queueService = ServiceRegister::getService(QueueService::CLASS_NAME);
-            $defaultQueueName = $this->getConfigService()->getDefaultQueueName();
-
-            $queueService->enqueue(
-                $defaultQueueName,
-                new UpdateShippingServicesTask(),
-                $this->getConfigService()->getContext()
-            );
+            $this->orchestrator->enqueue($this->getConfigService()->getContext());
         }
     }
 

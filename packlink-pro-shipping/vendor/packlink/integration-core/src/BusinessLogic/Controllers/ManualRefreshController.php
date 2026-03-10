@@ -2,19 +2,35 @@
 
 namespace Packlink\BusinessLogic\Controllers;
 
-use Logeecom\Infrastructure\ORM\QueryFilter\Operators;
-use Logeecom\Infrastructure\ORM\QueryFilter\QueryFilter;
-use Logeecom\Infrastructure\ORM\RepositoryRegistry;
 use Logeecom\Infrastructure\ServiceRegister;
-use Logeecom\Infrastructure\TaskExecution\Exceptions\QueueStorageUnavailableException;
-use Logeecom\Infrastructure\TaskExecution\QueueItem;
-use Logeecom\Infrastructure\TaskExecution\QueueService;
+use Logeecom\Infrastructure\TaskExecutor\Model\TaskStatus as CoreTaskStatus;
 use Packlink\BusinessLogic\Configuration;
 use Packlink\BusinessLogic\Controllers\DTO\TaskStatus;
-use Packlink\BusinessLogic\Tasks\UpdateShippingServicesTask;
+use Packlink\BusinessLogic\UpdateShippingServices\Interfaces\UpdateShippingServicesOrchestratorInterface;
+use Packlink\BusinessLogic\UpdateShippingServices\Interfaces\UpdateShippingServiceTaskStatusServiceInterface;
+use Packlink\BusinessLogic\UpdateShippingServices\Models\UpdateShippingServiceTaskStatus;
 
 class ManualRefreshController
 {
+    /**
+     * @var UpdateShippingServiceTaskStatusServiceInterface $statusService
+     */
+    private $statusService;
+
+    /**
+     * @var UpdateShippingServicesOrchestratorInterface $orchestrator
+     */
+    private $orchestrator;
+
+    public function __construct(
+        UpdateShippingServiceTaskStatusServiceInterface $statusService,
+        UpdateShippingServicesOrchestratorInterface $orchestrator
+    )
+    {
+        $this->statusService = $statusService;
+        $this->orchestrator = $orchestrator;
+    }
+
     /**
      * Configuration service instance.
      *
@@ -23,30 +39,26 @@ class ManualRefreshController
     protected $configuration;
 
     /**
-     * Enqueues the UpdateShippingServicesTask and returns a JSON response.
+     * Enqueues the UpdateShippingServicesBusinessTask and returns a JSON response.
      *
      * @return TaskStatus
      */
-    public function enqueueUpdateTask()
+    public function enqueueUpdateTask(): TaskStatus
     {
-        $queueService = ServiceRegister::getService(QueueService::CLASS_NAME);
+        $taskStatus = new TaskStatus();
+        $context = $this->getConfigService()->getContext();
 
-        $configService = $this->getConfigService();
 
         try {
-            $queueService->enqueue(
-                $configService->getDefaultQueueName(),
-                new UpdateShippingServicesTask(),
-                $configService->getContext()
-            );
+            $this->orchestrator->enqueue($context);
 
-            $taskStatus = new TaskStatus();
             $taskStatus->status = TaskStatus::SUCCESS;
             $taskStatus->message = 'Task successfully enqueued.';
             return $taskStatus;
 
-        } catch (QueueStorageUnavailableException $e) {
-            $taskStatus = new TaskStatus();
+        } catch (\Exception $e) {
+            $this->statusService->upsertStatus($context, CoreTaskStatus::FAILED, $e->getMessage(), true);
+
             $taskStatus->status = TaskStatus::ERROR;
             $taskStatus->message = 'Failed to enqueue task: ' . $e->getMessage();
             return $taskStatus;
@@ -65,47 +77,43 @@ class ManualRefreshController
      *  QueueItem::QUEUED - when the default warehouse is not set by user and the task was not enqueued.
      * </p>
      *
-     * @throws \Logeecom\Infrastructure\ORM\Exceptions\QueryFilterInvalidParamException
-     * @throws \Logeecom\Infrastructure\ORM\Exceptions\RepositoryClassException
-     * @throws \Logeecom\Infrastructure\ORM\Exceptions\RepositoryNotRegisteredException
-     * @throws \Logeecom\Infrastructure\TaskExecution\Exceptions\QueueItemDeserializationException
      */
     public function getTaskStatus($context = '')
     {
-        /**@var QueueService $service */
-        $service = ServiceRegister::getService(QueueService::CLASS_NAME);
-
-        $item = $service->findLatestByType('UpdateShippingServicesTask', $context);
-
         $taskStatus = new TaskStatus();
 
-        if ($item) {
-            $status = $item->getStatus();
-            $taskStatus->status = $status;
+        /** @var UpdateShippingServiceTaskStatus|null $entity */
+        $entity = $this->statusService->getLatestByContext((string)$context);
 
-            if ($status === QueueItem::FAILED) {
-                $taskStatus->message = $item->getFailureDescription();
-            }
-
-            if ($status === QueueItem::COMPLETED) {
-                $taskStatus->message = 'Queue item completed';
-            }
-
+        if (!$entity) {
+            $taskStatus->status = CoreTaskStatus::NOT_FOUND; // ili CoreTaskStatus::CREATED
+            $taskStatus->message = 'Status not found. Task was not enqueued yet.';
             return $taskStatus;
         }
 
-        $taskStatus->status = QueueItem::CREATED;
-        $taskStatus->message = 'Queue item not found.';
+        $taskStatus->status = $entity->getStatus();
+
+        if ($entity->getStatus() === CoreTaskStatus::FAILED) {
+            $taskStatus->message = $entity->getError() ?: 'Task failed.';
+            return $taskStatus;
+        }
+
+        if ($entity->getStatus() === CoreTaskStatus::COMPLETED) {
+            $taskStatus->message = 'Task completed successfully.';
+            return $taskStatus;
+        }
+
+        $taskStatus->message = $entity->getError() ?: $entity->getStatus();
 
         return $taskStatus;
     }
 
     /**
-     * Returns an instance of configuration service.
+     * Configuration service instance.
      *
-     * @return \Packlink\BusinessLogic\Configuration Configuration service.
+     * @return Configuration
      */
-    protected function getConfigService()
+    protected function getConfigService(): Configuration
     {
         if ($this->configuration === null) {
             $this->configuration = ServiceRegister::getService(Configuration::CLASS_NAME);
@@ -113,5 +121,4 @@ class ManualRefreshController
 
         return $this->configuration;
     }
-
 }

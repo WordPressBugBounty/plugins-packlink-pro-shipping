@@ -2,10 +2,10 @@
 
 namespace Packlink\BusinessLogic\Controllers;
 
-use Logeecom\Infrastructure\ServiceRegister;
-use Packlink\BusinessLogic\Country\Country;
-use Packlink\BusinessLogic\Country\WarehouseCountryService;
-use Packlink\BusinessLogic\Warehouse\WarehouseService;
+use Packlink\BusinessLogic\Country\Interfaces\CountryServiceInterface;
+use Packlink\BusinessLogic\Country\Models\Country;
+use Packlink\BusinessLogic\Warehouse\Interfaces\WarehouseServiceInterface;
+use Packlink\BusinessLogic\Warehouse\Warehouse;
 
 /**
  * Class WarehouseController
@@ -17,26 +17,34 @@ class WarehouseController
     /**
      * Warehouse service.
      *
-     * @var \Packlink\BusinessLogic\Warehouse\WarehouseService
+     * @var WarehouseServiceInterface
      */
-    protected $service;
+    protected $warehouseService;
 
     /**
+     * @var CountryServiceInterface $countryService
+     */
+    protected $countryService;
+
+    /**
+     * @param WarehouseServiceInterface $service
+     *
      * WarehouseController constructor.
      */
-    public function __construct()
+    public function __construct(WarehouseServiceInterface $service, CountryServiceInterface $countryService)
     {
-        $this->service = ServiceRegister::getService(WarehouseService::CLASS_NAME);
+        $this->warehouseService = $service;
+        $this->countryService = $countryService;
     }
 
     /**
      * Provides warehouse data.
      *
-     * @return \Packlink\BusinessLogic\Warehouse\Warehouse | null
+     * @return Warehouse | null
      */
     public function getWarehouse()
     {
-        return $this->service->getWarehouse();
+        return $this->warehouseService->getWarehouse();
     }
 
     /**
@@ -46,13 +54,12 @@ class WarehouseController
      *
      * @return \Packlink\BusinessLogic\Warehouse\Warehouse
      *
-     * @throws \Logeecom\Infrastructure\TaskExecution\Exceptions\QueueStorageUnavailableException
      * @throws \Packlink\BusinessLogic\DTO\Exceptions\FrontDtoNotRegisteredException
      * @throws \Packlink\BusinessLogic\DTO\Exceptions\FrontDtoValidationException
      */
     public function updateWarehouse(array $data)
     {
-        return $this->service->updateWarehouseData($data);
+        return $this->warehouseService->updateWarehouseData($data);
     }
 
     /**
@@ -60,11 +67,8 @@ class WarehouseController
      *
      * @return Country[]
      */
-    public function getWarehouseCountries()
+    public function getWarehouseCountries(): array
     {
-        /** @var WarehouseCountryService $countryService */
-        $countryService = ServiceRegister::getService(WarehouseCountryService::CLASS_NAME);
-
-        return $countryService->getSupportedCountries(false);
+        return $this->countryService->getSupportedCountries(false);
     }
 }

@@ -36,12 +36,13 @@ use Packlink\BusinessLogic\ShippingMethod\Utility\ShipmentStatus;
  *
  * @package Packlink\BusinessLogic\Order
  */
-class OrderService extends BaseService
+class OrderService extends BaseService implements \Packlink\BusinessLogic\Order\Interfaces\OrderServiceInterface
 {
     /**
      * Fully qualified name of this class.
      */
     const CLASS_NAME = __CLASS__;
+
     /**
      * Singleton instance of this class.
      *
@@ -85,12 +86,11 @@ class OrderService extends BaseService
     /**
      * Prepares shipment draft object for order with provided unique identifier.
      *
-     * @param string $orderId Unique order id.
+     * @param Order $order
      *
      * @return Draft Prepared shipment draft.
      *
-     * @throws \Packlink\BusinessLogic\Order\Exceptions\OrderNotFound When order with provided id is not found.
-     * @throws \Packlink\BusinessLogic\Order\Exceptions\EmptyOrderException When order has no items.
+     * @throws EmptyOrderException When order has no items.
      */
     public function prepareDraft(Order $order)
     {
@@ -149,6 +149,7 @@ class OrderService extends BaseService
      * @param string $customsInvoiceId
      *
      * @return void
+     *
      * @throws OrderShipmentDetailsNotFound
      */
     public function updateShipmentCustomsData($reference, $customsInvoiceId)
@@ -210,7 +211,7 @@ class OrderService extends BaseService
     public function updateTrackingInfo(Shipment $shipment)
     {
         /** @var Proxy $proxy */
-        $proxy = ServiceRegister::getService(Proxy::CLASS_NAME);
+        $proxy = ServiceRegister::getService(\Packlink\BusinessLogic\Http\Interfaces\Proxy::CLASS_NAME);
         try {
             $orderShipmentDetails = $this->orderShipmentDetailsService->getDetailsByReference($shipment->reference);
 
@@ -259,7 +260,7 @@ class OrderService extends BaseService
     public function getShipmentLabels($reference)
     {
         /** @var Proxy $proxy */
-        $proxy = ServiceRegister::getService(Proxy::CLASS_NAME);
+        $proxy = ServiceRegister::getService(\Packlink\BusinessLogic\Http\Interfaces\Proxy::CLASS_NAME);
         $labels = array();
 
         try {
@@ -361,7 +362,7 @@ class OrderService extends BaseService
         try {
             $cashOnDelivery = $this->cashOnDeliveryService->getCashOnDeliveryConfig();
         } catch (QueryFilterInvalidParamException $exception) {
-            return null;
+            return;
         }
 
         if (!$cashOnDelivery || !$cashOnDelivery->getAccount() || !$cashOnDelivery->isActive() ||
