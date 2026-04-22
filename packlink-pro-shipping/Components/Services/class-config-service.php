@@ -98,6 +98,16 @@ class Config_Service extends Configuration {
 	}
 
 	/**
+	 * Returns the integration registration webhook URL.
+	 *
+	 * @return string Registration webhook URL.
+	 */
+	public function getStatusUpdateUrl()
+	{
+		return Shop_Helper::get_controller_url('Integration_Registration_Webhook', 'index');
+	}
+
+	/**
 	 * Sets database version for migration scripts
 	 *
 	 * @param string $database_version Database version.
@@ -166,7 +176,6 @@ class Config_Service extends Configuration {
 		return $is_manual_sync_enabled ?: false;
 	}
 
-
 	/**
 	 * Saves whether manual synchronization is enabled.
 	 *
@@ -175,4 +184,5 @@ class Config_Service extends Configuration {
 	public function set_manual_sync_enabled( $manual_sync_enabled ) {
 		$this->saveConfigValue( 'Manual_Sync', $manual_sync_enabled );
 	}
+
 }
