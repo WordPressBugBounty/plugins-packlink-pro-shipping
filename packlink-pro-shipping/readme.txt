@@ -4,7 +4,7 @@ Tags: shipping, delivery, carrier, order, package
 Requires at least: 4.7
 Requires PHP: 7.0
 Tested up to: 6.9
-Stable tag: 4.1.2
+Stable tag: 4.2.0
 License: LICENSE-2.0
 License URI: http://www.apache.org/licenses/LICENSE-2.0
 
@@ -93,6 +93,15 @@ Click <a href="https://support-pro.packlink.com/hc/es-es/articles/210158585" tar
 
 
 == Changelog ==
+
+#### 4.2.0 - July 07th, 2026
+
+**Updates**
+
+- Add compatibility with Divi, Astra, Makeaholic themes
+- Add subscription banners
+- Improve bulk printing labels
+- Fix drop-off location selection on CartFlows Store Checkout
 
 #### 4.1.2 - May 19th, 2026
 
