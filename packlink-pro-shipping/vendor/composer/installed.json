@@ -59,17 +59,17 @@
         },
         {
             "name": "packlink/integration-core",
-            "version": "v4.2.4",
-            "version_normalized": "4.2.4.0",
+            "version": "v4.2.5",
+            "version_normalized": "4.2.5.0",
             "source": {
                 "type": "git",
                 "url": "git@github.com:packlink-dev/ecommerce_module_core.git",
-                "reference": "2b29660fa3ca4c9c7f74b0429d060f6eadd268ff"
+                "reference": "0f72e9a205619d36ba2a6b854db409fade144a73"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/packlink-dev/ecommerce_module_core/zipball/2b29660fa3ca4c9c7f74b0429d060f6eadd268ff",
-                "reference": "2b29660fa3ca4c9c7f74b0429d060f6eadd268ff",
+                "url": "https://api.github.com/repos/packlink-dev/ecommerce_module_core/zipball/0f72e9a205619d36ba2a6b854db409fade144a73",
+                "reference": "0f72e9a205619d36ba2a6b854db409fade144a73",
                 "shasum": ""
             },
             "require": {
@@ -82,7 +82,7 @@
                 "leafo/scssphp": "0.0.12",
                 "phpunit/phpunit": "^4.8"
             },
-            "time": "2026-07-08T09:26:11+00:00",
+            "time": "2026-07-22T15:11:02+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
