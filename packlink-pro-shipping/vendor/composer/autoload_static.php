@@ -4,43 +4,43 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInit2c1becda54e469bcbad568e65076f5c2
+class ComposerStaticInit9891ad99147f577d0db99a6407a4ab0d
 {
     public static $prefixLengthsPsr4 = array (
-        'i' => 
+        'i' =>
         array (
             'iio\\libmergepdf\\' => 16,
         ),
-        'P' => 
+        'P' =>
         array (
             'Packlink\\WooCommerce\\' => 21,
             'Packlink\\BusinessLogic\\' => 23,
             'Packlink\\Brands\\' => 16,
         ),
-        'L' => 
+        'L' =>
         array (
             'Logeecom\\Infrastructure\\' => 24,
         ),
     );
 
     public static $prefixDirsPsr4 = array (
-        'iio\\libmergepdf\\' => 
+        'iio\\libmergepdf\\' =>
         array (
             0 => __DIR__ . '/..' . '/iio/libmergepdf/src',
         ),
-        'Packlink\\WooCommerce\\' => 
+        'Packlink\\WooCommerce\\' =>
         array (
             0 => __DIR__ . '/../..' . '/',
         ),
-        'Packlink\\BusinessLogic\\' => 
+        'Packlink\\BusinessLogic\\' =>
         array (
             0 => __DIR__ . '/..' . '/packlink/integration-core/src/BusinessLogic',
         ),
-        'Packlink\\Brands\\' => 
+        'Packlink\\Brands\\' =>
         array (
             0 => __DIR__ . '/..' . '/packlink/integration-core/src/Brands',
         ),
-        'Logeecom\\Infrastructure\\' => 
+        'Logeecom\\Infrastructure\\' =>
         array (
             0 => __DIR__ . '/..' . '/packlink/integration-core/src/Infrastructure',
         ),
@@ -62,9 +62,9 @@ class ComposerStaticInit2c1becda54e469bcbad568e65076f5c2
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInit2c1becda54e469bcbad568e65076f5c2::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInit2c1becda54e469bcbad568e65076f5c2::$prefixDirsPsr4;
-            $loader->classMap = ComposerStaticInit2c1becda54e469bcbad568e65076f5c2::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInit9891ad99147f577d0db99a6407a4ab0d::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInit9891ad99147f577d0db99a6407a4ab0d::$prefixDirsPsr4;
+            $loader->classMap = ComposerStaticInit9891ad99147f577d0db99a6407a4ab0d::$classMap;
 
         }, null, ClassLoader::class);
     }
